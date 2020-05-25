@@ -8,9 +8,16 @@ import (
 	"net"
 )
 
-type Plaza struct{}
+type Plaza struct {
+	users []*pb.Plaza_EntryServer
+}
 
 func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
+	if p.users == nil {
+		p.users = make([]*pb.Plaza_EntryServer, 0, 10)
+	}
+	p.users = append(p.users, &stream)
+
 	for {
 		in, err := stream.Recv()
 		if err == io.EOF {
@@ -27,7 +34,9 @@ func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
 			Content: content,
 		}
 
-		stream.Send(message)
+		for _, user := range p.users {
+			(*user).Send(message)
+		}
 	}
 }
 
