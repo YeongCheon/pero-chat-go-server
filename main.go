@@ -12,6 +12,12 @@ type Plaza struct {
 	users []*pb.Plaza_EntryServer
 }
 
+func (p *Plaza) broadcast(message *pb.Message) {
+	for _, user := range p.users {
+		(*user).Send(message)
+	}
+}
+
 func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
 	if p.users == nil {
 		p.users = make([]*pb.Plaza_EntryServer, 0, 10)
@@ -34,9 +40,7 @@ func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
 			Content: content,
 		}
 
-		for _, user := range p.users {
-			(*user).Send(message)
-		}
+		p.broadcast(message)
 	}
 }
 
