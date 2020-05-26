@@ -3,6 +3,7 @@ package main
 import (
 	pb "github.com/yeongcheon/pero-chat/gen/go"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"io"
 	"log"
 	"net"
@@ -45,12 +46,13 @@ func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
 }
 
 func main() {
+	creds, _ := credentials.NewServerTLSFromFile("ssl.crt", "ssl.key")
 	lis, err := net.Listen("tcp", ":9999")
 	if err != nil {
 		log.Fatalf("failed to listen : %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.Creds(creds))
 	pb.RegisterPlazaServer(grpcServer, &Plaza{})
 	grpcServer.Serve(lis)
 }
