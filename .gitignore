@@ -1,5 +1,6 @@
 /ssl.crt
 /ssl.key
+/firebase-adminsdk.json
 
 # Created by https://www.gitignore.io/api/go,emacs
 # Edit at https://www.gitignore.io/?templates=go,emacs
