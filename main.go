@@ -44,11 +44,15 @@ func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
 		if err != nil {
 			return err
 		}
-		name := in.Name
+		name := stream.Context().Value("name")
 		content := in.Content
 
+		if name == nil {
+			name = "noname"
+		}
+
 		message := &pb.Message{
-			Name:    name,
+			Name:    name.(string),
 			Content: content,
 		}
 
@@ -102,13 +106,17 @@ func firebaseAuthInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
 			idToken := md["Authorization"][0]
-			_, err := client.VerifyIDToken(ctx, idToken)
-
+			authToken, err := client.VerifyIDToken(ctx, idToken)
 			if err != nil {
 				return nil, err
-			} else {
-				return handler(ctx, req)
 			}
+			record, err := client.GetUser(ctx, authToken.UID)
+			if err != nil {
+				return nil, err
+			}
+
+			ctx = metadata.AppendToOutgoingContext(ctx, "name", record.DisplayName)
+			return handler(ctx, req)
 		} else {
 			return nil, errInvalidToken
 		}
