@@ -24,8 +24,12 @@ type Plaza struct {
 	users []*pb.Plaza_EntryServer
 }
 
-func (p *Plaza) broadcast(message *pb.Message) {
+func (p *Plaza) broadcast(name string, content string) {
 	for _, user := range p.users {
+		message := &pb.ChatMessageResponse{
+			Name:    name,
+			Content: content,
+		}
 		(*user).Send(message)
 	}
 }
@@ -51,12 +55,7 @@ func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
 			name = "noname"
 		}
 
-		message := &pb.Message{
-			Name:    name.(string),
-			Content: content,
-		}
-
-		p.broadcast(message)
+		p.broadcast(name.(string), content)
 	}
 }
 

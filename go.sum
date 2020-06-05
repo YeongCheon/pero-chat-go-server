@@ -111,6 +111,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/yeongcheon/pero-chat v0.0.0-20200524121332-56fe06bb034f h1:H2UkXoN4avCxRa2lNGSpAPFkjRrbY9+eVaRZIAVANrI=
 github.com/yeongcheon/pero-chat v0.0.0-20200524121332-56fe06bb034f/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
+github.com/yeongcheon/pero-chat v0.0.0-20200605133611-ebb91a8797f1 h1:WEv90Z3to0gdx/6dtmC6AypqmYqJTT27ajDxHR1KBwA=
+github.com/yeongcheon/pero-chat v0.0.0-20200605133611-ebb91a8797f1/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
