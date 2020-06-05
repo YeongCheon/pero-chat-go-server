@@ -103,15 +103,21 @@ func firebaseAuthInterceptor() grpc.UnaryServerInterceptor {
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
 			idToken := md["Authorization"][0]
 			_, err := client.VerifyIDToken(ctx, idToken)
+
 			if err != nil {
 				return nil, err
+			} else {
+				return handler(ctx, req)
 			}
-
-			return handler(ctx, req)
 		} else {
 			return nil, errInvalidToken
 		}
 	}
+}
+
+func unaryLoggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	log.Printf("%s", req)
+	return handler(ctx, req)
 }
 
 func main() {
@@ -124,7 +130,10 @@ func main() {
 	opts := []grpc.ServerOption{
 		// grpc.Creds(creds),
 		grpc.StreamInterceptor(firebaseAuthStreamInterceptor()),
-		grpc.UnaryInterceptor(firebaseAuthInterceptor()),
+		grpc.ChainUnaryInterceptor(
+			unaryLoggingInterceptor,
+			firebaseAuthInterceptor(),
+		),
 	}
 
 	grpcServer := grpc.NewServer(opts...)
