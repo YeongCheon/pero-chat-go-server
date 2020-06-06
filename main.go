@@ -24,9 +24,10 @@ type Plaza struct {
 }
 
 func (p *Plaza) Broadcast(ctx context.Context, message *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
+	name := ctx.Value("name")
 	for _, user := range p.users {
 		message := &pb.ChatMessageResponse{
-			Name:    "noname",
+			Name:    name.(string),
 			Content: message.GetContent(),
 		}
 		(*user).Send(message)
