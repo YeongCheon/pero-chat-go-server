@@ -113,6 +113,8 @@ github.com/yeongcheon/pero-chat v0.0.0-20200524121332-56fe06bb034f h1:H2UkXoN4av
 github.com/yeongcheon/pero-chat v0.0.0-20200524121332-56fe06bb034f/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
 github.com/yeongcheon/pero-chat v0.0.0-20200605133611-ebb91a8797f1 h1:WEv90Z3to0gdx/6dtmC6AypqmYqJTT27ajDxHR1KBwA=
 github.com/yeongcheon/pero-chat v0.0.0-20200605133611-ebb91a8797f1/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
+github.com/yeongcheon/pero-chat v0.0.0-20200606051320-b61ed93e3576 h1:RXFhvlGoTWdmmbDKYUjqv51dP6OljRwAEO/03BJCeQo=
+github.com/yeongcheon/pero-chat v0.0.0-20200606051320-b61ed93e3576/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=

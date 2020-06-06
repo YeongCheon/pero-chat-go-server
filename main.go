@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"io"
 	"log"
 	"net"
 )
@@ -24,39 +23,25 @@ type Plaza struct {
 	users []*pb.Plaza_EntryServer
 }
 
-func (p *Plaza) broadcast(name string, content string) {
+func (p *Plaza) Broadcast(ctx context.Context, message *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
 	for _, user := range p.users {
 		message := &pb.ChatMessageResponse{
-			Name:    name,
-			Content: content,
+			Name:    "noname",
+			Content: message.GetContent(),
 		}
 		(*user).Send(message)
 	}
+
+	return &pb.BroadcastResponse{}, nil
 }
 
-func (p *Plaza) Entry(stream pb.Plaza_EntryServer) error {
+func (p *Plaza) Entry(entryRequest *pb.EntryRequest, stream pb.Plaza_EntryServer) error {
 	if p.users == nil {
 		p.users = make([]*pb.Plaza_EntryServer, 0, 10)
 	}
 	p.users = append(p.users, &stream)
 
-	for {
-		in, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		name := stream.Context().Value("name")
-		content := in.Content
-
-		if name == nil {
-			name = "noname"
-		}
-
-		p.broadcast(name.(string), content)
-	}
+	return nil
 }
 
 func firebaseAuthStreamInterceptor() grpc.StreamServerInterceptor {
