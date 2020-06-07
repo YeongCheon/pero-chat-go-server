@@ -25,6 +25,9 @@ type Plaza struct {
 
 func (p *Plaza) Broadcast(ctx context.Context, message *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
 	name := ctx.Value("name")
+	if name == nil {
+		name = "noname"
+	}
 	for _, user := range p.users {
 		message := &pb.ChatMessageResponse{
 			Name:    name.(string),
@@ -33,7 +36,9 @@ func (p *Plaza) Broadcast(ctx context.Context, message *pb.ChatMessageRequest) (
 		(*user).Send(message)
 	}
 
-	return &pb.BroadcastResponse{}, nil
+	return &pb.BroadcastResponse{
+		Message: "success",
+	}, nil
 }
 
 func (p *Plaza) Entry(entryRequest *pb.EntryRequest, stream pb.Plaza_EntryServer) error {
@@ -65,7 +70,9 @@ func firebaseAuthStreamInterceptor() grpc.StreamServerInterceptor {
 
 				_, err := client.VerifyIDToken(ctx, idToken)
 				if err != nil {
-					return err
+					return nil
+				} else {
+					return nil
 				}
 			}
 
@@ -90,11 +97,13 @@ func firebaseAuthInterceptor() grpc.UnaryServerInterceptor {
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
-			idToken := md["Authorization"][0]
-			authToken, err := client.VerifyIDToken(ctx, idToken)
-			if err != nil {
-				return nil, err
+			authorization := md["Authorization"]
+			if len(authorization) == 0 {
+				return nil, errInvalidToken
 			}
+
+			idToken := authorization[0]
+			authToken, err := client.VerifyIDToken(ctx, idToken)
 			record, err := client.GetUser(ctx, authToken.UID)
 			if err != nil {
 				return nil, err
