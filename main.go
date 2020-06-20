@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	firebase "firebase.google.com/go"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/google/uuid"
 	pb "github.com/yeongcheon/pero-chat/gen/go"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -19,21 +21,43 @@ var (
 	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
 )
 
-type Plaza struct {
-	users []*pb.Plaza_EntryServer
+type Room struct {
+	Id       string
+	RommInfo *pb.Room
+	Users    []*User
+	Streams  []pb.ChatService_EntryServer
 }
 
-func (p *Plaza) Broadcast(ctx context.Context, message *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
+type User struct {
+}
+
+type PeroChat struct {
+	Rooms map[string]*Room // key: room ID
+}
+
+func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
 	name := ctx.Value("name")
 	if name == nil {
 		name = "noname"
 	}
-	for _, user := range p.users {
+
+	roomId := messageRequest.GetRoomId()
+	room := p.Rooms[roomId]
+
+	for _, stream := range room.Streams {
 		message := &pb.ChatMessageResponse{
-			Name:    name.(string),
-			Content: message.GetContent(),
+			MessageType: pb.ChatMessageResponse_COMMON_MESSAGE,
+			Payload: &pb.ChatMessageResponse_CommonMessage{
+				CommonMessage: &pb.CommonMessage{
+					Id:        uuid.New().String(),
+					User:      ctx.Value("user").(*pb.User),
+					Message:   messageRequest.GetMessage(),
+					CreatedAt: ptypes.TimestampNow(),
+				},
+			},
 		}
-		(*user).Send(message)
+
+		stream.Send(message)
 	}
 
 	return &pb.BroadcastResponse{
@@ -41,11 +65,19 @@ func (p *Plaza) Broadcast(ctx context.Context, message *pb.ChatMessageRequest) (
 	}, nil
 }
 
-func (p *Plaza) Entry(entryRequest *pb.EntryRequest, stream pb.Plaza_EntryServer) error {
-	if p.users == nil {
-		p.users = make([]*pb.Plaza_EntryServer, 0, 10)
+func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_EntryServer) error {
+	if p.Rooms == nil {
+		p.Rooms = make(map[string]*Room)
 	}
-	p.users = append(p.users, &stream)
+
+	roomId := entryRequest.GetRoomId()
+
+	if p.Rooms[roomId] == nil {
+		p.Rooms[roomId] = &Room{
+			Streams: []pb.ChatService_EntryServer{},
+		}
+	}
+	p.Rooms[roomId].Streams = append(p.Rooms[roomId].Streams, stream)
 
 	return nil
 }
@@ -139,7 +171,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterPlazaServer(grpcServer, &Plaza{})
+	pb.RegisterChatServiceServer(grpcServer, &PeroChat{})
 	if err := grpcServer.Serve(lis); err != nil {
 		panic(err)
 	}

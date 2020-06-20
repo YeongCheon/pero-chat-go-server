@@ -91,6 +91,8 @@ github.com/google/pprof v0.0.0-20191218002539-d4f498aebedc/go.mod h1:ZgVRPoUq/hf
 github.com/google/pprof v0.0.0-20200212024743-f11f1df84d12/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
 github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
+github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
+github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/googleapis/gax-go/v2 v2.0.4/go.mod h1:0Wqv26UfaUD9n4G6kQubkQ+KchISgw+vpHVxEJEs9eg=
 github.com/googleapis/gax-go/v2 v2.0.5 h1:sjZBwGj9Jlw33ImPtvFviGYvseOtDM7hkSKB7+Tv3SM=
 github.com/googleapis/gax-go/v2 v2.0.5/go.mod h1:DWXyrwAJ9X0FpwwEdw+IPEYBICEFu5mhpdKc/us6bOk=
@@ -115,6 +117,10 @@ github.com/yeongcheon/pero-chat v0.0.0-20200605133611-ebb91a8797f1 h1:WEv90Z3to0
 github.com/yeongcheon/pero-chat v0.0.0-20200605133611-ebb91a8797f1/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
 github.com/yeongcheon/pero-chat v0.0.0-20200606051320-b61ed93e3576 h1:RXFhvlGoTWdmmbDKYUjqv51dP6OljRwAEO/03BJCeQo=
 github.com/yeongcheon/pero-chat v0.0.0-20200606051320-b61ed93e3576/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
+github.com/yeongcheon/pero-chat v0.0.0-20200617153208-ef092c3ed368 h1:iqQltNT/cL0aZRz4+ITxSreQzGtVR1Nosn3HVtxsPXo=
+github.com/yeongcheon/pero-chat v0.0.0-20200617153208-ef092c3ed368/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
+github.com/yeongcheon/pero-chat v0.0.0-20200620091855-6efa5bc8f4df h1:yXrhwWCkWi+6EKvcXETBXtPSDKoM0pnNxjPCbUtyQNU=
+github.com/yeongcheon/pero-chat v0.0.0-20200620091855-6efa5bc8f4df/go.mod h1:ljSdQRRFw0tw5y2wJ2ZTluFhfUkykiQWER9vy4fWDu0=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
