@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	firebase "firebase.google.com/go"
+	"firebase.google.com/go/auth"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	pb "github.com/yeongcheon/pero-chat/gen/go"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"log"
 	"net"
+	"time"
 )
 
 var (
@@ -32,7 +34,8 @@ type User struct {
 }
 
 type PeroChat struct {
-	Rooms map[string]*Room // key: room ID
+	FirebaseAuthClient *auth.Client
+	Rooms              map[string]*Room // key: room ID
 }
 
 func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
@@ -44,13 +47,28 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 	roomId := messageRequest.GetRoomId()
 	room := p.Rooms[roomId]
 
+	uid := ctx.Value("userId").(string)
+
+	record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	createdAt, _ := ptypes.TimestampProto(time.Unix(record.UserMetadata.CreationTimestamp/1000, 0))
+
+	user := &pb.User{
+		Id:        uid,
+		Name:      record.DisplayName,
+		CreatedAt: createdAt,
+	}
+
 	for _, stream := range room.Streams {
 		message := &pb.ChatMessageResponse{
 			MessageType: pb.ChatMessageResponse_COMMON_MESSAGE,
 			Payload: &pb.ChatMessageResponse_CommonMessage{
 				CommonMessage: &pb.CommonMessage{
 					Id:        uuid.New().String(),
-					User:      ctx.Value("user").(*pb.User),
+					User:      user,
 					Message:   messageRequest.GetMessage(),
 					CreatedAt: ptypes.TimestampNow(),
 				},
@@ -141,7 +159,7 @@ func firebaseAuthInterceptor() grpc.UnaryServerInterceptor {
 				return nil, err
 			}
 
-			ctx = metadata.AppendToOutgoingContext(ctx, "name", record.DisplayName)
+			ctx = metadata.AppendToOutgoingContext(ctx, "userId", record.UID)
 			return handler(ctx, req)
 		} else {
 			return nil, errInvalidToken
@@ -170,8 +188,21 @@ func main() {
 		),
 	}
 
+	firebaseOpt := option.WithCredentialsFile("./firebase-adminsdk.json")
+	app, err := firebase.NewApp(context.Background(), nil, firebaseOpt)
+	if err != nil {
+		log.Fatalf("error firebase init app: %v\n", err)
+	}
+
+	client, err := app.Auth(context.Background())
+	if err != nil {
+		log.Fatalf("error firebase auth client: %v\n", err)
+	}
+
 	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterChatServiceServer(grpcServer, &PeroChat{})
+	pb.RegisterChatServiceServer(grpcServer, &PeroChat{
+		FirebaseAuthClient: client,
+	})
 	if err := grpcServer.Serve(lis); err != nil {
 		panic(err)
 	}
