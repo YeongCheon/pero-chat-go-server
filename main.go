@@ -39,13 +39,11 @@ type PeroChat struct {
 }
 
 func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
-	name := ctx.Value("name")
-	if name == nil {
-		name = "noname"
-	}
-
 	roomId := messageRequest.GetRoomId()
 	room := p.Rooms[roomId]
+	if room == nil {
+		return nil, grpc.Errorf(codes.NotFound, "room %s is not exist", roomId)
+	}
 
 	uid := ctx.Value("userId").(string)
 
@@ -100,6 +98,10 @@ func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_En
 			Streams: []pb.ChatService_EntryServer{},
 		}
 	}
+	if p.Rooms[roomId].Streams == nil {
+		p.Rooms[roomId].Streams = []pb.ChatService_EntryServer{}
+	}
+
 	p.Rooms[roomId].Streams = append(p.Rooms[roomId].Streams, stream)
 
 	return nil
@@ -152,19 +154,20 @@ func firebaseAuthInterceptor() grpc.UnaryServerInterceptor {
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
-			authorization := md["Authorization"]
+			authorization := md["authorization"]
 			if len(authorization) == 0 {
 				return nil, errInvalidToken
 			}
 
 			idToken := authorization[0]
+
 			authToken, err := client.VerifyIDToken(ctx, idToken)
 			record, err := client.GetUser(ctx, authToken.UID)
 			if err != nil {
 				return nil, err
 			}
 
-			ctx = metadata.AppendToOutgoingContext(ctx, "userId", record.UID)
+			ctx = context.WithValue(ctx, "userId", record.UID)
 			return handler(ctx, req)
 		} else {
 			return nil, errInvalidToken
