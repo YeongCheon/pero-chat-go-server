@@ -4,7 +4,6 @@ import (
 	"context"
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/auth"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	pb "github.com/yeongcheon/pero-chat/gen/go"
 	"google.golang.org/api/option"
@@ -13,6 +12,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"net"
 	"time"
@@ -54,12 +54,15 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 		return nil, err
 	}
 
-	createdAt, _ := ptypes.TimestampProto(time.Unix(record.UserMetadata.CreationTimestamp/1000, 0))
+	uCreatedAt := &timestamppb.Timestamp{
+		Seconds: record.UserMetadata.CreationTimestamp / 1000,
+		Nanos:   0,
+	}
 
 	user := &pb.User{
 		Id:        uid,
 		Name:      record.DisplayName,
-		CreatedAt: createdAt,
+		CreatedAt: uCreatedAt,
 	}
 
 	for _, stream := range room.Streams {
@@ -67,10 +70,12 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 			MessageType: pb.ChatMessageResponse_COMMON_MESSAGE,
 			Payload: &pb.ChatMessageResponse_CommonMessage{
 				CommonMessage: &pb.CommonMessage{
-					Id:        uuid.New().String(),
-					User:      user,
-					Message:   messageRequest.GetMessage(),
-					CreatedAt: ptypes.TimestampNow(),
+					Id:      uuid.New().String(),
+					User:    user,
+					Message: messageRequest.GetMessage(),
+					CreatedAt: &timestamppb.Timestamp{
+						Seconds: time.Now().Unix(),
+					},
 				},
 			},
 		}
