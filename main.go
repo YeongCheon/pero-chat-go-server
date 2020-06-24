@@ -35,7 +35,7 @@ type User struct {
 
 type PeroChat struct {
 	FirebaseAuthClient *auth.Client
-	Rooms              map[string]*Room // key: room ID
+	Rooms              map[string][]chan *pb.ChatMessageResponse // key: room ID
 }
 
 func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
@@ -45,7 +45,20 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 		return nil, grpc.Errorf(codes.NotFound, "room %s is not exist", roomId)
 	}
 
-	uid := ctx.Value("userId").(string)
+	var uid string
+
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		authorization := md["authorization"]
+		idToken := authorization[0]
+
+		authToken, err := p.FirebaseAuthClient.VerifyIDToken(ctx, idToken)
+		record, err := p.FirebaseAuthClient.GetUser(ctx, authToken.UID)
+		if err != nil {
+			return nil, err
+		}
+
+		uid = record.UID
+	}
 
 	record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
 	if err != nil {
@@ -63,22 +76,22 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 		CreatedAt: uCreatedAt,
 	}
 
-	for _, stream := range room.Streams {
-		message := &pb.ChatMessageResponse{
-			MessageType: pb.ChatMessageResponse_COMMON_MESSAGE,
-			Payload: &pb.ChatMessageResponse_CommonMessage{
-				CommonMessage: &pb.CommonMessage{
-					Id:      uuid.New().String(),
-					User:    user,
-					Message: messageRequest.GetMessage(),
-					CreatedAt: &timestamppb.Timestamp{
-						Seconds: time.Now().Unix(),
-					},
+	message := &pb.ChatMessageResponse{
+		MessageType: pb.ChatMessageResponse_COMMON_MESSAGE,
+		Payload: &pb.ChatMessageResponse_CommonMessage{
+			CommonMessage: &pb.CommonMessage{
+				Id:      uuid.New().String(),
+				User:    user,
+				Message: messageRequest.GetMessage(),
+				CreatedAt: &timestamppb.Timestamp{
+					Seconds: time.Now().Unix(),
 				},
 			},
-		}
+		},
+	}
 
-		stream.Send(message)
+	for _, channel := range room {
+		channel <- message
 	}
 
 	return &pb.BroadcastResponse{
@@ -88,23 +101,24 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 
 func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_EntryServer) error {
 	if p.Rooms == nil {
-		p.Rooms = make(map[string]*Room)
+		p.Rooms = make(map[string][]chan *pb.ChatMessageResponse)
 	}
 
 	roomId := entryRequest.GetRoomId()
-
 	if p.Rooms[roomId] == nil {
-		p.Rooms[roomId] = &Room{
-			Streams: []pb.ChatService_EntryServer{},
+		p.Rooms[roomId] = make([]chan *pb.ChatMessageResponse, 0)
+	}
+	myChannel := make(chan *pb.ChatMessageResponse)
+	p.Rooms[roomId] = append(p.Rooms[roomId], myChannel)
+
+	for {
+		message := <-myChannel
+
+		err := stream.Send(message)
+		if err != nil {
+			return err
 		}
 	}
-	if p.Rooms[roomId].Streams == nil {
-		p.Rooms[roomId].Streams = []pb.ChatService_EntryServer{}
-	}
-
-	p.Rooms[roomId].Streams = append(p.Rooms[roomId].Streams, stream)
-
-	return nil
 }
 
 func firebaseAuthStreamInterceptor() grpc.StreamServerInterceptor {
@@ -127,16 +141,14 @@ func firebaseAuthStreamInterceptor() grpc.StreamServerInterceptor {
 
 				_, err := client.VerifyIDToken(ctx, idToken)
 				if err != nil {
-					return nil
-				} else {
-					return nil
+					return err
 				}
 			}
-
-			return handler(srv, ss)
 		} else {
 			return errInvalidToken
 		}
+
+		return handler(srv, ss)
 	}
 }
 
@@ -161,13 +173,11 @@ func firebaseAuthInterceptor() grpc.UnaryServerInterceptor {
 
 			idToken := authorization[0]
 
-			authToken, err := client.VerifyIDToken(ctx, idToken)
-			record, err := client.GetUser(ctx, authToken.UID)
+			_, err := client.VerifyIDToken(ctx, idToken)
 			if err != nil {
 				return nil, err
 			}
 
-			ctx = context.WithValue(ctx, "userId", record.UID)
 			return handler(ctx, req)
 		} else {
 			return nil, errInvalidToken
