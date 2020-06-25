@@ -45,35 +45,20 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 		return nil, grpc.Errorf(codes.NotFound, "room %s is not exist", roomId)
 	}
 
-	var uid string
-
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		authorization := md["authorization"]
-		idToken := authorization[0]
-
-		authToken, err := p.FirebaseAuthClient.VerifyIDToken(ctx, idToken)
-		record, err := p.FirebaseAuthClient.GetUser(ctx, authToken.UID)
-		if err != nil {
-			return nil, err
-		}
-
-		uid = record.UID
-	}
+	uid := ctx.Value("uid").(string)
+	sec := time.Now().Unix() / 1000
 
 	record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
 	if err != nil {
-		return nil, err
-	}
-
-	uCreatedAt := &timestamppb.Timestamp{
-		Seconds: record.UserMetadata.CreationTimestamp / 1000,
-		Nanos:   0,
+		return nil, errInvalidToken
 	}
 
 	user := &pb.User{
-		Id:        uid,
-		Name:      record.DisplayName,
-		CreatedAt: uCreatedAt,
+		Id:   uid,
+		Name: record.DisplayName,
+		CreatedAt: &timestamppb.Timestamp{
+			Seconds: record.UserMetadata.CreationTimestamp / 1000,
+		},
 	}
 
 	message := &pb.ChatMessageResponse{
@@ -84,7 +69,7 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 				User:    user,
 				Message: messageRequest.GetMessage(),
 				CreatedAt: &timestamppb.Timestamp{
-					Seconds: time.Now().Unix(),
+					Seconds: sec,
 				},
 			},
 		},
@@ -173,11 +158,12 @@ func firebaseAuthInterceptor() grpc.UnaryServerInterceptor {
 
 			idToken := authorization[0]
 
-			_, err := client.VerifyIDToken(ctx, idToken)
+			authToken, err := client.VerifyIDToken(ctx, idToken)
 			if err != nil {
 				return nil, err
 			}
 
+			ctx = context.WithValue(ctx, "uid", authToken.UID)
 			return handler(ctx, req)
 		} else {
 			return nil, errInvalidToken
