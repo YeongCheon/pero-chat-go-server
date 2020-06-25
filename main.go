@@ -101,6 +101,12 @@ func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_En
 
 		err := stream.Send(message)
 		if err != nil {
+			for idx, ch := range p.Rooms[roomId] { // remove channel
+				if ch == myChannel {
+					p.Rooms[roomId] = append(p.Rooms[roomId][:idx], p.Rooms[roomId][idx+1:]...)
+				}
+			}
+
 			return err
 		}
 	}
