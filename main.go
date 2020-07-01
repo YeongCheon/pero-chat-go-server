@@ -26,16 +26,19 @@ var (
 type Room struct {
 	Id       string
 	RommInfo *pb.Room
-	Users    []*User
-	Streams  []pb.ChatService_EntryServer
+	Users    map[string]*User
+	Streams  []chan *pb.ChatMessageResponse
 }
 
 type User struct {
+	Id        string
+	Name      string
+	CreatedAt time.Time
 }
 
 type PeroChat struct {
 	FirebaseAuthClient *auth.Client
-	Rooms              map[string][]chan *pb.ChatMessageResponse // key: room ID
+	Rooms              map[string]*Room // key: room ID
 }
 
 func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
@@ -45,20 +48,40 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 		return nil, grpc.Errorf(codes.NotFound, "room %s is not exist", roomId)
 	}
 
-	uid := ctx.Value("uid").(string)
-	sec := time.Now().Unix() / 1000
-
-	record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
-	if err != nil {
-		return nil, errInvalidToken
+	if room.Users == nil {
+		room.Users = make(map[string]*User)
 	}
 
-	user := &pb.User{
-		Id:   uid,
-		Name: record.DisplayName,
-		CreatedAt: &timestamppb.Timestamp{
-			Seconds: record.UserMetadata.CreationTimestamp / 1000,
-		},
+	uid := ctx.Value("uid").(string)
+
+	var user *pb.User
+
+	if u, ok := room.Users[uid]; ok {
+		user = &pb.User{
+			Id:   uid,
+			Name: u.Name,
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: int64(u.CreatedAt.Second()),
+			},
+		}
+	} else {
+		record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
+		if err != nil {
+			return nil, errInvalidToken
+		}
+		user = &pb.User{
+			Id:   uid,
+			Name: record.DisplayName,
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: record.UserMetadata.CreationTimestamp / 1000,
+			},
+		}
+
+		room.Users[uid] = &User{
+			Id:        uid,
+			Name:      record.DisplayName,
+			CreatedAt: time.Unix(record.UserMetadata.CreationTimestamp, 0),
+		}
 	}
 
 	message := &pb.ChatMessageResponse{
@@ -69,13 +92,13 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 				User:    user,
 				Message: messageRequest.GetMessage(),
 				CreatedAt: &timestamppb.Timestamp{
-					Seconds: sec,
+					Seconds: time.Now().Unix() / 1000,
 				},
 			},
 		},
 	}
 
-	for _, channel := range room {
+	for _, channel := range room.Streams {
 		channel <- message
 	}
 
@@ -86,26 +109,35 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 
 func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_EntryServer) error {
 	if p.Rooms == nil {
-		p.Rooms = make(map[string][]chan *pb.ChatMessageResponse)
+		p.Rooms = make(map[string]*Room)
 	}
 
 	roomId := entryRequest.GetRoomId()
+	room := &Room{
+		Id: roomId,
+	}
+
 	if p.Rooms[roomId] == nil {
-		p.Rooms[roomId] = make([]chan *pb.ChatMessageResponse, 0)
+		p.Rooms[roomId] = room
 	}
 	myChannel := make(chan *pb.ChatMessageResponse)
-	p.Rooms[roomId] = append(p.Rooms[roomId], myChannel)
+	room.Streams = append(p.Rooms[roomId].Streams, myChannel)
 
 	for {
 		message := <-myChannel
 
 		err := stream.Send(message)
 		if err != nil {
-			for idx, ch := range p.Rooms[roomId] { // remove channel
+			for idx, ch := range room.Streams { // remove channel
 				if ch == myChannel {
-					p.Rooms[roomId] = append(p.Rooms[roomId][:idx], p.Rooms[roomId][idx+1:]...)
+					room.Streams = append(room.Streams[:idx], room.Streams[idx+1:]...)
 				}
 			}
+
+			ctx := stream.Context()
+			uid := ctx.Value("uid").(string)
+
+			delete(room.Users, uid)
 
 			return err
 		}
@@ -184,7 +216,7 @@ func unaryLoggingInterceptor(ctx context.Context, req interface{}, info *grpc.Un
 
 func main() {
 	_, _ = credentials.NewServerTLSFromFile("ssl.crt", "ssl.key")
-	lis, err := net.Listen("tcp", ":9999")
+	lis, err := net.Listen("tcp", ":9090")
 	if err != nil {
 		log.Fatalf("failed to listen : %v", err)
 	}
