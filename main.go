@@ -41,6 +41,29 @@ type PeroChat struct {
 	Rooms              map[string]*Room // key: room ID
 }
 
+// wrappedStream wraps around the embedded grpc.ServerStream, and intercepts the RecvMsg and
+// SendMsg method call.
+type wrappedStream struct {
+	ctx context.Context
+	grpc.ServerStream
+}
+
+func (w *wrappedStream) Context() context.Context {
+	return w.ctx
+}
+
+func (w *wrappedStream) RecvMsg(m interface{}) error {
+	return w.ServerStream.RecvMsg(m)
+}
+
+func (w *wrappedStream) SendMsg(m interface{}) error {
+	return w.ServerStream.SendMsg(m)
+}
+
+func newWrappedStream(ctx context.Context, s grpc.ServerStream) grpc.ServerStream {
+	return &wrappedStream{ctx, s}
+}
+
 func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
 	roomId := messageRequest.GetRoomId()
 	room := p.Rooms[roomId]
@@ -54,34 +77,17 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 
 	uid := ctx.Value("uid").(string)
 
-	var user *pb.User
+	if _, ok := room.Users[uid]; !ok {
+		return nil, errInvalidToken // FIXME
+	}
 
-	if u, ok := room.Users[uid]; ok {
-		user = &pb.User{
-			Id:   uid,
-			Name: u.Name,
-			CreatedAt: &timestamppb.Timestamp{
-				Seconds: int64(u.CreatedAt.Second()),
-			},
-		}
-	} else {
-		record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
-		if err != nil {
-			return nil, errInvalidToken
-		}
-		user = &pb.User{
-			Id:   uid,
-			Name: record.DisplayName,
-			CreatedAt: &timestamppb.Timestamp{
-				Seconds: record.UserMetadata.CreationTimestamp / 1000,
-			},
-		}
-
-		room.Users[uid] = &User{
-			Id:        uid,
-			Name:      record.DisplayName,
-			CreatedAt: time.Unix(record.UserMetadata.CreationTimestamp, 0),
-		}
+	u := room.Users[uid]
+	user := &pb.User{
+		Id:   uid,
+		Name: u.Name,
+		CreatedAt: &timestamppb.Timestamp{
+			Seconds: int64(u.CreatedAt.Second()),
+		},
 	}
 
 	message := &pb.ChatMessageResponse{
@@ -113,13 +119,32 @@ func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_En
 	}
 
 	roomId := entryRequest.GetRoomId()
-	room := &Room{
-		Id: roomId,
+	if p.Rooms[roomId] == nil {
+		p.Rooms[roomId] = &Room{
+			Id: roomId,
+		}
+	}
+	room := p.Rooms[roomId]
+
+	ctx := stream.Context()
+
+	uid := ctx.Value("uid").(string)
+
+	record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
+	if err != nil {
+		return errInvalidToken // FIXME
 	}
 
-	if p.Rooms[roomId] == nil {
-		p.Rooms[roomId] = room
+	if room.Users == nil {
+		room.Users = make(map[string]*User)
 	}
+
+	room.Users[uid] = &User{
+		Id:        uid,
+		Name:      record.DisplayName,
+		CreatedAt: time.Unix(record.UserMetadata.CreationTimestamp, 0),
+	}
+
 	myChannel := make(chan *pb.ChatMessageResponse)
 	room.Streams = append(p.Rooms[roomId].Streams, myChannel)
 
@@ -162,16 +187,18 @@ func firebaseAuthStreamInterceptor() grpc.StreamServerInterceptor {
 			if len(md["authorization"]) >= 1 {
 				idToken := md["authorization"][0]
 
-				_, err := client.VerifyIDToken(ctx, idToken)
+				authToken, err := client.VerifyIDToken(ctx, idToken)
 				if err != nil {
 					return err
 				}
+
+				ctx = context.WithValue(ctx, "uid", authToken.UID)
 			}
 		} else {
 			return errInvalidToken
 		}
 
-		return handler(srv, ss)
+		return handler(srv, newWrappedStream(ctx, ss))
 	}
 }
 
