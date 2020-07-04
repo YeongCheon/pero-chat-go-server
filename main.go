@@ -9,18 +9,10 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"net"
 	"time"
-)
-
-var (
-	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
-	errUserNotInRoom   = status.Errorf(codes.InvalidArgument, "user not eixst in room")
-	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
-	errInvalidUserId   = status.Errorf(codes.InvalidArgument, "invalid user id")
 )
 
 type PeroChat struct {
@@ -32,7 +24,7 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 	roomId := messageRequest.GetRoomId()
 	room := p.Rooms[roomId]
 	if room == nil {
-		return nil, grpc.Errorf(codes.NotFound, "room %s is not exist", roomId)
+		return nil, errRoomNotExist
 	}
 
 	if room.Users == nil {
