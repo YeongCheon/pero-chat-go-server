@@ -23,45 +23,9 @@ var (
 	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
 )
 
-type Room struct {
-	Id       string
-	RommInfo *pb.Room
-	Users    map[string]*User
-	Streams  []chan *pb.ChatMessageResponse
-}
-
-type User struct {
-	Id        string
-	Name      string
-	CreatedAt time.Time
-}
-
 type PeroChat struct {
 	FirebaseAuthClient *auth.Client
 	Rooms              map[string]*Room // key: room ID
-}
-
-// wrappedStream wraps around the embedded grpc.ServerStream, and intercepts the RecvMsg and
-// SendMsg method call.
-type wrappedStream struct {
-	ctx context.Context
-	grpc.ServerStream
-}
-
-func (w *wrappedStream) Context() context.Context {
-	return w.ctx
-}
-
-func (w *wrappedStream) RecvMsg(m interface{}) error {
-	return w.ServerStream.RecvMsg(m)
-}
-
-func (w *wrappedStream) SendMsg(m interface{}) error {
-	return w.ServerStream.SendMsg(m)
-}
-
-func newWrappedStream(ctx context.Context, s grpc.ServerStream) grpc.ServerStream {
-	return &wrappedStream{ctx, s}
 }
 
 func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessageRequest) (*pb.BroadcastResponse, error) {
