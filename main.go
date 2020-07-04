@@ -18,7 +18,9 @@ import (
 
 var (
 	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
+	errUserNotInRoom   = status.Errorf(codes.InvalidArgument, "user not eixst in room")
 	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
+	errInvalidUserId   = status.Errorf(codes.InvalidArgument, "invalid user id")
 )
 
 type PeroChat struct {
@@ -40,7 +42,7 @@ func (p *PeroChat) Broadcast(ctx context.Context, messageRequest *pb.ChatMessage
 	uid := ctx.Value("uid").(string)
 
 	if _, ok := room.Users[uid]; !ok {
-		return nil, errInvalidToken // FIXME
+		return nil, errUserNotInRoom
 	}
 
 	u := room.Users[uid]
@@ -94,7 +96,7 @@ func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_En
 
 	record, err := p.FirebaseAuthClient.GetUser(ctx, uid)
 	if err != nil {
-		return errInvalidToken // FIXME
+		return errInvalidUserId
 	}
 
 	if room.Users == nil {
