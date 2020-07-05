@@ -8,7 +8,6 @@ import (
 	pb "github.com/yeongcheon/pero-chat/gen/go"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"net"
