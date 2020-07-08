@@ -9,6 +9,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"io"
 	"log"
 	"net"
 	"time"
@@ -107,7 +108,7 @@ func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_En
 		message := <-myChannel
 
 		err := stream.Send(message)
-		if err != nil {
+		if err == io.EOF {
 			for idx, ch := range room.Streams { // remove channel
 				if ch == myChannel {
 					room.Streams = append(room.Streams[:idx], room.Streams[idx+1:]...)
