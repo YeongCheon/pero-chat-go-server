@@ -6,7 +6,7 @@ import (
 
 type Room struct {
 	Id       string
-	RommInfo *pb.Room
+	RoomInfo *pb.Room
 	Users    map[string]*User
 	Streams  []chan *pb.ChatMessageResponse
 }

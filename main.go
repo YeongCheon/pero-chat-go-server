@@ -116,6 +116,11 @@ func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_En
 							Seconds: record.UserMetadata.CreationTimestamp,
 						},
 					},
+					Room: &pb.Room{
+						Id:    room.RoomInfo.GetId(),
+						Title: room.RoomInfo.GetTitle(),
+					},
+					Message: "new user entry",
 				},
 			},
 		}
