@@ -104,29 +104,31 @@ func (p *PeroChat) Entry(entryRequest *pb.EntryRequest, stream pb.ChatService_En
 	myChannel := make(chan *pb.ChatMessageResponse)
 	room.Streams = append(p.Rooms[roomId].Streams, myChannel)
 
-	for _, streamCh := range room.Streams { // for send JoinNewUser message
-		message := &pb.ChatMessageResponse{
-			MessageType: pb.ChatMessageResponse_SYSTEM_JOIN_NEW_USER,
-			Payload: &pb.ChatMessageResponse_SystemJoinNewUser{
-				SystemJoinNewUser: &pb.System_JoinNewUser{
-					User: &pb.User{
-						Id:   room.Users[uid].Id,
-						Name: room.Users[uid].Name,
-						CreatedAt: &timestamppb.Timestamp{
-							Seconds: record.UserMetadata.CreationTimestamp,
+	go func() {
+		for _, streamCh := range room.Streams { // for send JoinNewUser message
+			message := &pb.ChatMessageResponse{
+				MessageType: pb.ChatMessageResponse_SYSTEM_JOIN_NEW_USER,
+				Payload: &pb.ChatMessageResponse_SystemJoinNewUser{
+					SystemJoinNewUser: &pb.System_JoinNewUser{
+						User: &pb.User{
+							Id:   room.Users[uid].Id,
+							Name: room.Users[uid].Name,
+							CreatedAt: &timestamppb.Timestamp{
+								Seconds: record.UserMetadata.CreationTimestamp,
+							},
 						},
+						Room: &pb.Room{
+							Id:    room.RoomInfo.GetId(),
+							Title: room.RoomInfo.GetTitle(),
+						},
+						Message: "new user entry",
 					},
-					Room: &pb.Room{
-						Id:    room.RoomInfo.GetId(),
-						Title: room.RoomInfo.GetTitle(),
-					},
-					Message: "new user entry",
 				},
-			},
-		}
+			}
 
-		streamCh <- message
-	}
+			streamCh <- message
+		}
+	}()
 
 	for {
 		message := <-myChannel
