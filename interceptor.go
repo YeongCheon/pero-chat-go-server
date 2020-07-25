@@ -33,12 +33,13 @@ func firebaseAuthStreamInterceptor() grpc.StreamServerInterceptor {
 				}
 
 				ctx = context.WithValue(ctx, "uid", authToken.UID)
+				return handler(srv, newWrappedStream(ctx, ss))
+			} else {
+				return errInvalidToken
 			}
 		} else {
 			return errInvalidToken
 		}
-
-		return handler(srv, newWrappedStream(ctx, ss))
 	}
 }
 
